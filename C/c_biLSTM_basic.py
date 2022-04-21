@@ -121,7 +121,7 @@ def train_model(model, X_train, Y_train, X_val, Y_val):
         monitor='val_accuracy',
         mode='max',
         save_best_only=True)
-    earlyStop = keras.callbacks.EarlyStopping(monitor='val_accuracy', min_delta=0, patience=10, mode='max', verbose=1,
+    earlyStop = keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=0, patience=10, mode='min', verbose=1,
                                               restore_best_weights=True)
     callbacks_list = [checkpoint, earlyStop]
     model.fit(X_train, Y_train, validation_data=(X_val, Y_val), epochs=50, batch_size=128, shuffle=True,
