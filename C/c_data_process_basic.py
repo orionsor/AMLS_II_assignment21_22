@@ -1,49 +1,20 @@
-import keras
-from keras import Sequential
-from keras.models import Model
-from keras.layers import Dense, Dropout, LSTM, Bidirectional,GlobalMaxPool1D,SpatialDropout1D,Conv1D,MaxPooling1D
-from keras.layers.embeddings import Embedding
-from sklearn.model_selection import train_test_split
-import tensorflow as tf
-from keras.preprocessing.sequence import pad_sequences
-import os
-import random
+
 import numpy as np
 import pandas as pd
 import re
 import matplotlib.pyplot as plt
-import seaborn as sns
-import matplotlib.cm as cm
-from matplotlib import rcParams
 import nltk
-
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.tokenize import RegexpTokenizer
-from nltk.stem.isri import ISRIStemmer
-from collections import Counter
-import itertools
 import string
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn import preprocessing
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.svm import SVC
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
-from joblib import dump, load
 from nltk.stem.isri import ISRIStemmer
 from nltk.tag import pos_tag
 from nltk.stem.wordnet import WordNetLemmatizer
 from time import time
 import gensim
 from gensim.scripts.glove2word2vec import glove2word2vec
-from gensim.test.utils import datapath, get_tmpfile
 from gensim.models import KeyedVectors
 from gensim.scripts.glove2word2vec import glove2word2vec
 from tensorflow.keras.utils import to_categorical
-from tensorflow.python.keras.utils.multi_gpu_utils import multi_gpu_model
 import os
 import pickle
 nltk.download('punkt')
@@ -51,51 +22,40 @@ nltk.download('stopwords')
 nltk.download('averaged_perceptron_tagger')
 nltk.download('wordnet')
 
+from wordcloud import WordCloud, STOPWORDS
+
 
 w2v_root = "../Datasets/w2v_model/glove_twitter_200d.model"
-
-
-def data_import():
-    data1 = pd.read_table('../Datasets/A/english/twitter-2016train-A.txt' , usecols=[0,1,2], encoding='utf-8', names=['id','sentiment', 'tweet'])
-    data2 = pd.read_table('../Datasets/A/english/twitter-2016test-A.txt' , usecols=[0,1,2], encoding='utf-8', names=['id','sentiment', 'tweet'])
+root_1 = "../Datasets/C/english/twitter-2016train-CE.txt"
+root_2 = "../Datasets/C/english/twitter-2016test-CE.txt"
+def data_import(root1,root2):
+    data1 = pd.read_table(root1, usecols=[0,1,2,3], encoding='utf-8', names=['id','topic','sentiment', 'tweet'])
+    data2 = pd.read_table(root2 , usecols=[0,1,2,3], encoding='utf-8', names=['id','topic','sentiment', 'tweet'])
     data = pd.concat([data1,data2],axis=0,ignore_index=True)
     return data
 
 def plot_data_distribution(df):
-    groups = df.groupby('label').count()   # beautiful graph
+    groups = df.groupby('sentiment').count()  # beautiful graph
     plt.figure(figsize=(14, 12))
     groups['tweet'].plot(kind='bar')
-    x = range(0,3,1)
     y = range(0,15000,2000)
-    plt.xticks(x, ('negative', 'neutral',"positive"),rotation=0,weight='semibold')
+     # beautiful graph
+    groups['tweet'].plot(kind='bar')
+    x = range(0, 5, 1)
+    plt.xticks(x, ('very negative', 'negative', 'neutral', "positive", "very positive"),rotation=0,weight='semibold')
     plt.yticks(y,weight='semibold')
     plt.tick_params(labelsize=12)
     plt.xlabel('Sentiment',fontdict={'weight':'semibold','size':16})
     plt.ylabel('Number of Tweets',fontdict={'weight':'semibold','size': 16})
-    plt.title('Distribution of Sentiments before Augmentation',fontdict={'weight':'semibold','size': 20})
-    plt.savefig('./plot/distribution_noaug_en.jpg')
+    plt.title('Distribution of Five-scale Sentiments',fontdict={'weight':'semibold','size': 20})
+    plt.savefig('./plot/distribution__en.jpg')
     plt.show()
 
-def add_label(df):
-    CATEGORY_INDEX = {
-    "negative": -1,
-    "neutral": 0,
-    "positive": 1
-    }
 
-    """transfer label into numeric data """
-    raw_label = df['sentiment'].values.tolist()
-    rawlabel = []
-    for i in range(len(raw_label)):
-        rawlabel.append(CATEGORY_INDEX[raw_label[i]])
-
-    df['label'] = rawlabel
-
-    return df
 
 """preprocess functions"""
 def clean_base(tweets, clean_object):
-    # tweets.loc[:, "tweet"].replace(clean_object, "", inplace=True)
+
     tweets = re.sub(clean_object, ' ', tweets)
     return tweets
 
@@ -126,9 +86,10 @@ def remove_punctuations(text):
     translator = str.maketrans('', '', punctuations_list)
     return text.translate(translator)
 
-def processDocument(doc, stemmer):
+def processDocument(doc, stemmer,datatype ="tweet"):
     # Replace @username with empty string
-    doc = remove_usernames(doc)
+    if datatype == "tweet":
+        doc = remove_usernames(doc)
     # Replace url with empty string
     doc = remove_urls(doc)
 
@@ -139,11 +100,6 @@ def processDocument(doc, stemmer):
     # Replace #word with word
     doc = re.sub(r'#([^\s]+)', r'\1', doc)
 
-    # remove punctuations
-    #doc = remove_punctuations(doc)
-    # normalize the tweet
-    # doc= normalize_arabic(doc)
-
     # Replace numbers with empty string
     doc = remove_numbers(doc)
     # Replace @username with empty string
@@ -152,6 +108,8 @@ def processDocument(doc, stemmer):
     # stemming
     doc = stemmer.stem(doc)
     return doc
+
+
 
 def stoplist_process():
     stopwords = nltk.corpus.stopwords.words("english")
@@ -188,7 +146,6 @@ def data_tokenization(x):
 
 
 
-
 def lemmatize_sentence(tweet_tokens,STOP_WORDS):
     cleaned_tokens = []
 
@@ -205,7 +162,7 @@ def lemmatize_sentence(tweet_tokens,STOP_WORDS):
         lemmatizer = WordNetLemmatizer()
         token = lemmatizer.lemmatize(token.lower(), pos)
 
-        # Eliminating the token if its length is less than 3, if it is a punctuation or if it is a stopword
+        """Eliminating the token if its length is less than 2 or if it is a stopword"""
         if token not in string.punctuation and len(token) > 2 and token not in STOP_WORDS:
             cleaned_tokens.append(token)
         elif token in string.punctuation:
@@ -214,13 +171,15 @@ def lemmatize_sentence(tweet_tokens,STOP_WORDS):
     return cleaned_tokens
 
 def data_to_le(x,stoplist):
-  x = data_tokenization(x)
-  temp = []
-  for tokens in x:
-    temp.append(lemmatize_sentence(tokens,stoplist))
-  return temp
+    """summary of tokenization and lemmatization"""
+    x = data_tokenization(x)
+    temp = []
+    for tokens in x:
+        temp.append(lemmatize_sentence(tokens,stoplist))
+    return temp
 
 def load_w2v_model(root):
+    """load GloVe corpus and model"""
     w2v_model = KeyedVectors.load(root)
     return w2v_model
 
@@ -234,6 +193,7 @@ def cleared(word):
     return res
 
 def create_data(data_pro,word_to_index):
+    """convert text data into vectors"""
     unks = []
     UNKS = []
     list_len = [len(i) for i in data_pro]
@@ -260,38 +220,35 @@ def create_data(data_pro,word_to_index):
             X[i, j] = index
     return X
 
-def create_label(df,type = 'categorical'):
 
-    if type == 'categorical':
-        Y = np.zeros((len(df),))
-
-        for i in range(len(df)):
-            Y[i] = df['label'][i]
-        Y = to_categorical(Y, 3)
-    elif type == 'sparse':
-        sparse_dic = {'-1': 0, '0': 1, '1': 2}
-        Y = np.zeros((len(df),))
-        for i in range(len(df)):
-            Y[i] = sparse_dic['%d' % df['label'][i]]
-
-    return Y
+def create_Y(y):
+  temp = np.zeros((len(y), ))
+  for i  in range(len(y)):
+    temp[i] = y[i]
+  Y = to_categorical(temp,5)
+  return Y
 
 
-from wordcloud import WordCloud, STOPWORDS
+
 
 def create_sentiment_list(df,data_pro,sentiment = 'neutral'):
     senti = []
+    CATEGORY_INDEX = {
+        'very negative': -2,
+        'negative': -1,
+        'neutral': 0,
+        "positive": 1,
+        "very positive": 2
+    }
 
-# Separating out positive and negative words (i.e., words appearing in negative and positive tweets),
-# in order to visualize each set of words seperately
     for i in range(len(df)):
-        if df['sentiment'][i] == sentiment:
+        if df['sentiment'][i] == CATEGORY_INDEX[sentiment]:
             senti.extend(data_pro[i])
     return senti
 
 
 
-# Defining our word cloud drawing function
+"""Defining our word cloud drawing function"""
 def wordcloud_draw(data,stop,color='black', title='positive'):
     wordcloud = WordCloud(stopwords=stop,
                           background_color=color,
@@ -313,27 +270,39 @@ def wordcloud_draw(data,stop,color='black', title='positive'):
 
 if __name__ == '__main__':
     #os.environ["CUDA_VISIBLE_DEVICES"] = '0'
-    data = data_import()
-    data = add_label(data)
+    data = data_import(root_1,root_2)
     #plot_data_distribution(data)
     stemmer = ISRIStemmer()
-    data["tweet"] = data['tweet'].apply(lambda x: processDocument(x, stemmer))
+    data["tweet"] = data['tweet'].apply(lambda x: processDocument(x, stemmer,datatype="tweet"))
+    data["topic"] = data['topic'].apply(lambda x: processDocument(x, stemmer,datatype="label"))
     stoplist = stoplist_process()
     data_list = data["tweet"] .tolist()
+    topic_list = data['topic'].tolist()
+    label_list = data['sentiment'].tolist()
     data_processed = data_to_le(data_list,stoplist)
+    topic_processed = data_to_le(topic_list, stoplist)
 
-    positive_words = create_sentiment_list(data,data_processed,sentiment ='positive')
-    neutral_words = create_sentiment_list(data, data_processed, sentiment='neutral')
-    negative_words = create_sentiment_list(data, data_processed, sentiment='negative')
-    wordcloud_draw(positive_words,stoplist, 'white', title='positive')
-    wordcloud_draw(neutral_words,stoplist, 'ghostwhite', title='neutral')
-    wordcloud_draw(negative_words,stoplist, title='nagative')
+    """used to draw word cloud if needed"""
+    #positive_words = create_sentiment_list(data,data_processed,sentiment ='positive')
+    #very_positive_words = create_sentiment_list(data, data_processed, sentiment='very positive')
+    #neutral_words = create_sentiment_list(data, data_processed, sentiment='neutral')
+    #very_negative_words = create_sentiment_list(data, data_processed, sentiment='very negative')
+    #negative_words = create_sentiment_list(data, data_processed, sentiment='negative')
+    #wordcloud_draw(very_positive_words,stoplist, 'white', title='very positive')
+    #wordcloud_draw(positive_words, stoplist, 'white', title='positive')
+    #wordcloud_draw(neutral_words,stoplist, 'ghostwhite', title='neutral')
+    #wordcloud_draw(negative_words,stoplist, title='nagative')
+    #wordcloud_draw(very_negative_words,stoplist, title='very nagative')
 
     embedding_model = load_w2v_model(w2v_root)
     X = create_data(data_processed, embedding_model.key_to_index)
-    Y = create_label(data,type = 'categorical')
-    pickle.dump(X, open("../Datasets/A/english/data_noaug.p" , "wb"))
-    pickle.dump(Y, open("../Datasets/A/english/label_noaug.p", "wb"))
+    X_topic = create_data(topic_processed, embedding_model.key_to_index)
+    X_merge = []
+    for i in range(len(X)):
+        X_merge.append((X[i], X_topic[i]))
+    Y = create_Y(label_list)
+    pickle.dump(X_merge, open("../Datasets/C/english/data_basic.p" , "wb"))
+    pickle.dump(Y, open("../Datasets/C/english/label_basic.p", "wb"))
 
 
 

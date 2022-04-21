@@ -1,49 +1,20 @@
-import keras
-from keras import Sequential
-from keras.models import Model
-from keras.layers import Dense, Dropout, LSTM, Bidirectional,GlobalMaxPool1D,SpatialDropout1D,Conv1D,MaxPooling1D
-from keras.layers.embeddings import Embedding
-from sklearn.model_selection import train_test_split
-import tensorflow as tf
-from keras.preprocessing.sequence import pad_sequences
-import os
-import random
+
 import numpy as np
 import pandas as pd
 import re
 import matplotlib.pyplot as plt
-import seaborn as sns
-import matplotlib.cm as cm
-from matplotlib import rcParams
+
 import nltk
 
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.tokenize import RegexpTokenizer
-from nltk.stem.isri import ISRIStemmer
-from collections import Counter
-import itertools
 import string
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn import preprocessing
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.svm import SVC
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
-from joblib import dump, load
 from nltk.stem.isri import ISRIStemmer
 from nltk.tag import pos_tag
 from nltk.stem.wordnet import WordNetLemmatizer
 from time import time
-import gensim
-from gensim.scripts.glove2word2vec import glove2word2vec
-from gensim.test.utils import datapath, get_tmpfile
 from gensim.models import KeyedVectors
 from gensim.scripts.glove2word2vec import glove2word2vec
 from tensorflow.keras.utils import to_categorical
-from tensorflow.python.keras.utils.multi_gpu_utils import multi_gpu_model
 import os
 import pickle
 import ekphrasis
@@ -54,14 +25,17 @@ nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('averaged_perceptron_tagger')
 nltk.download('wordnet')
-
+from wordcloud import WordCloud, STOPWORDS
 
 w2v_root = "../Datasets/w2v_model/glove_twitter_200d.model"
+root1 = "../Datasets/A/english/twitter-2016train-A.txt"
+root2 = "../Datasets/A/english/twitter-2016test-A.txt"
 
+"""this file is to generate the data through preprocess without data augmentation but with the assistance of ekphrasis library"""
 
-def data_import():
-    data1 = pd.read_table('../Datasets/A/english/twitter-2016train-A.txt' , usecols=[0,1,2], encoding='utf-8', names=['id','sentiment', 'tweet'])
-    data2 = pd.read_table('../Datasets/A/english/twitter-2016test-A.txt' , usecols=[0,1,2], encoding='utf-8', names=['id','sentiment', 'tweet'])
+def data_import(root_1,root_2):
+    data1 = pd.read_table(root_1 , usecols=[0,1,2], encoding='utf-8', names=['id','sentiment', 'tweet'])
+    data2 = pd.read_table(root_2, usecols=[0,1,2], encoding='utf-8', names=['id','sentiment', 'tweet'])
     data = pd.concat([data1,data2],axis=0,ignore_index=True)
     return data
 
@@ -119,7 +93,7 @@ def remove_repeating_char(text):
 
 def remove_hashtags(tweets):  # it unrolls the hashtags to normal words
     for hashtag in map(lambda x: re.compile(re.escape(x)), [",", "\"", "=", "&", ";", "%", "$",
-                                                            "@", "%", "^", "*", "(", ")", "{", "}",
+                                                            "@", "%", "^", "*", "{", "}",
                                                             "[", "]", "|", "/", "\\", "-",
                                                              ".", "'",
                                                             "--", "---", "#"]):
@@ -127,26 +101,22 @@ def remove_hashtags(tweets):  # it unrolls the hashtags to normal words
     return tweets
 
 def processDocument(doc):
-    # Replace @username with empty string
+    """summary of data cleansing"""
+    """Replace @username with empty string"""
     doc = remove_usernames(doc)
-    # Replace url with empty string
+    """Replace url with empty string"""
     doc = remove_urls(doc)
 
     doc = re.sub(r'\n', ' ', doc)
     doc = re.sub(r'\d', '', doc)
-    # Convert www.* or https?://* to " "
+    """Convert www.* or https?://* to """
     doc = re.sub('(www\.[^\s])', ' ', doc)
-    # Replace #word with word
+    """Replace #word with word"""
     doc = re.sub(r'#([^\s]+)', r'\1', doc)
 
-    # remove punctuations
-    #doc = remove_punctuations(doc)
-    # normalize the tweet
-    # doc= normalize_arabic(doc)
-
-    # Replace numbers with empty string
+    """Replace numbers with empty string"""
     doc = remove_numbers(doc)
-    # Replace @username with empty string
+    """Replace selected hashtags with empty string"""
     doc = remove_hashtags(doc)
 
     # stemming
@@ -154,6 +124,7 @@ def processDocument(doc):
     return doc
 
 def stoplist_process():
+    """process of original stopwords"""
     stopwords = nltk.corpus.stopwords.words("english")
     whitelist = ["n't", "dn", "en", "tn", "not", "sn"]
     stop = []
@@ -179,6 +150,7 @@ def stoplist_process():
 
 
 def create_tokenizer():
+    """create tokenizer with ekphrasis"""
     text_processor = TextPreProcessor(
         # terms that will be normalized
         normalize=['url', 'email', 'percent', 'money', 'phone', 'user',
@@ -188,7 +160,7 @@ def create_tokenizer():
                   'emphasis', 'censored'},
         fix_html=True,  # fix HTML tokens
 
-        # corpus from which the word statistics are going to be used
+        #corpus from which the word statistics are going to be used
         # for word segmentation
         segmenter="twitter",
 
@@ -217,6 +189,7 @@ def data_tokenization(x,text_processor):
     return x
 
 def lemmatize_sentence(tweet_tokens,STOP_WORDS):
+    """recognize part of speech and restore word into original form"""
     cleaned_tokens = []
 
     for token, tag in pos_tag(tweet_tokens):
@@ -232,7 +205,7 @@ def lemmatize_sentence(tweet_tokens,STOP_WORDS):
         lemmatizer = WordNetLemmatizer()
         token = lemmatizer.lemmatize(token.lower(), pos)
 
-        # Eliminating the token if its length is less than 3, if it is a punctuation or if it is a stopword
+        """Eliminating the token if its length is less than 2 or if it is a stopword"""
         if token not in string.punctuation and len(token) > 2 and token not in STOP_WORDS:
             cleaned_tokens.append(token)
         elif token in string.punctuation:
@@ -242,13 +215,15 @@ def lemmatize_sentence(tweet_tokens,STOP_WORDS):
     return cleaned_tokens
 
 def data_to_le(x,stoplist,processer):
-  x = data_tokenization(x,processer)
-  temp = []
-  for tokens in x:
-    temp.append(lemmatize_sentence(tokens,stoplist))
-  return temp
+    """summary of tokenization and lemmatization"""
+    x = data_tokenization(x,processer)
+    temp = []
+    for tokens in x:
+        temp.append(lemmatize_sentence(tokens,stoplist))
+    return temp
 
 def load_w2v_model(root):
+    """load GloVe corpus and model"""
     w2v_model = KeyedVectors.load(root)
     return w2v_model
 
@@ -262,6 +237,7 @@ def cleared(word):
     return res
 
 def create_data(data_pro,word_to_index):
+    """convert text data into vectors"""
     unks = []
     UNKS = []
     list_len = [len(i) for i in data_pro]
@@ -289,7 +265,7 @@ def create_data(data_pro,word_to_index):
     return X
 
 def create_label(df,type = 'categorical'):
-
+    """create labels based on conditions, sparse labels can be created if needed"""
     if type == 'categorical':
         Y = np.zeros((len(df),))
 
@@ -305,21 +281,18 @@ def create_label(df,type = 'categorical'):
     return Y
 
 
-from wordcloud import WordCloud, STOPWORDS
+
 
 def create_sentiment_list(df,data_pro,sentiment = 'neutral'):
     senti = []
-
-# Separating out positive and negative words (i.e., words appearing in negative and positive tweets),
-# in order to visualize each set of words seperately
+    """Separating out positive and negative words (i.e., words appearing in negative and positive tweets),
+                        in order to visualize each set of words seperately"""
     for i in range(len(df)):
         if df['sentiment'][i] == sentiment:
             senti.extend(data_pro[i])
     return senti
 
 
-
-# Defining our word cloud drawing function
 def wordcloud_draw(data,stop,color='black', title='positive'):
     wordcloud = WordCloud(stopwords=stop,
                           background_color=color,
@@ -339,9 +312,10 @@ def wordcloud_draw(data,stop,color='black', title='positive'):
 
 
 
-def main():
+if __name__ == '__main__':
+
     #os.environ["CUDA_VISIBLE_DEVICES"] = '0'
-    data = data_import()
+    data = data_import(root1,root2)
     data = add_label(data)
     #plot_data_distribution(data)
     data["tweet"] = data['tweet'].apply(lambda x: processDocument(x))
@@ -350,6 +324,7 @@ def main():
     text_processor = create_tokenizer()
     data_processed = data_to_le(data_list,stoplist,text_processor)
 
+    # draw wordcloud
     positive_words = create_sentiment_list(data,data_processed,sentiment ='positive')
     neutral_words = create_sentiment_list(data, data_processed, sentiment='neutral')
     negative_words = create_sentiment_list(data, data_processed, sentiment='negative')
@@ -357,15 +332,15 @@ def main():
     wordcloud_draw(neutral_words,stoplist, 'ghostwhite', title='neutral')
     wordcloud_draw(negative_words,stoplist, title='nagative')
 
-    #df1 = pd.DataFrame([data_processed,data['label'].values],columns = ['tweets','label'])
+
 
 
     embedding_model = load_w2v_model(w2v_root)
     X = create_data(data_processed, embedding_model.key_to_index)
     Y = create_label(data,type = 'categorical')
-    #pickle.dump(X, open("../Datasets/A/english/data_ekphrasis.p" , "wb"))
-    #pickle.dump(Y, open("../Datasets/A/english/label_ekphrasis.p", "wb"))
-    return X,Y
+    pickle.dump(X, open("../Datasets/A/english/data_ekphrasis.p" , "wb"))
+    pickle.dump(Y, open("../Datasets/A/english/label_ekphrasis.p", "wb"))
+
 
 
 

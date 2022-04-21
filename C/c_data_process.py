@@ -53,14 +53,15 @@ nltk.download('wordnet')
 from ekphrasis.classes.preprocessor import TextPreProcessor
 from ekphrasis.classes.tokenizer import SocialTokenizer
 from ekphrasis.dicts.emoticons import emoticons
+from wordcloud import WordCloud, STOPWORDS
 
 
 w2v_root = "../Datasets/w2v_model/glove_twitter_200d.model"
-
-
-def data_import():
-    data1 = pd.read_table('../Datasets/C/english/twitter-2016train-CE.txt' , usecols=[0,1,2,3], encoding='utf-8', names=['id','topic','sentiment', 'tweet'])
-    data2 = pd.read_table('../Datasets/C/english/twitter-2016test-CE.txt' , usecols=[0,1,2,3], encoding='utf-8', names=['id','topic','sentiment', 'tweet'])
+root_1 = "../Datasets/C/english/twitter-2016train-CE.txt"
+root_2 = "../Datasets/C/english/twitter-2016test-CE.txt"
+def data_import(root1,root2):
+    data1 = pd.read_table(root1, usecols=[0,1,2,3], encoding='utf-8', names=['id','topic','sentiment', 'tweet'])
+    data2 = pd.read_table(root2 , usecols=[0,1,2,3], encoding='utf-8', names=['id','topic','sentiment', 'tweet'])
     data = pd.concat([data1,data2],axis=0,ignore_index=True)
     return data
 
@@ -282,31 +283,16 @@ def create_data(data_pro,word_to_index):
             X[i, j] = index
     return X
 
-def create_label(df,type = 'categorical'):
-
-    if type == 'categorical':
-        Y = np.zeros((len(df),))
-
-        for i in range(len(df)):
-            Y[i] = df['sentiment'][i]
-        Y = to_categorical(Y, 5)
-    elif type == 'sparse':
-        sparse_dic = {'-1': 0, '0': 1, '1': 2}
-        Y = np.zeros((len(df),))
-        for i in range(len(df)):
-            Y[i] = sparse_dic['%d' % df['sentiment'][i]]
-
-    return Y
 
 def create_Y(y):
   temp = np.zeros((len(y), ))
   for i  in range(len(y)):
     temp[i] = y[i]
-  #Y = to_categorical(temp,5)
-  return temp
+  Y = to_categorical(temp,5)
+  return Y
 
 
-from wordcloud import WordCloud, STOPWORDS
+
 
 def create_sentiment_list(df,data_pro,sentiment = 'neutral'):
     senti = []
@@ -348,7 +334,7 @@ def wordcloud_draw(data,stop,color='black', title='positive'):
 
 if __name__ == '__main__':
     #os.environ["CUDA_VISIBLE_DEVICES"] = '0'
-    data = data_import()
+    data = data_import(root_1,root_2)
     #plot_data_distribution(data)
     stemmer = ISRIStemmer()
     data["tweet"] = data['tweet'].apply(lambda x: processDocument(x, stemmer,datatype="tweet"))

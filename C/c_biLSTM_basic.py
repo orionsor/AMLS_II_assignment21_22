@@ -4,52 +4,26 @@ from keras.models import Model
 from keras.layers import Dense, Dropout, LSTM, Bidirectional, GlobalMaxPool1D, SpatialDropout1D, Conv1D, MaxPooling1D
 from keras.layers.embeddings import Embedding
 from keras.layers import Input
-from sklearn.model_selection import train_test_split
 import tensorflow as tf
-from keras.preprocessing.sequence import pad_sequences
 import os
 import random
 import numpy as np
 import pandas as pd
 import re
 import matplotlib.pyplot as plt
-import seaborn as sns
-import matplotlib.cm as cm
-from matplotlib import rcParams
-import nltk
-
-
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.tokenize import RegexpTokenizer
-from nltk.stem.isri import ISRIStemmer
-from collections import Counter
-import itertools
-import string
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.svm import SVC
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-
-from joblib import dump, load
 from time import time
 import gensim
 from gensim.scripts.glove2word2vec import glove2word2vec
-
-from gensim.test.utils import datapath, get_tmpfile
 from gensim.models import KeyedVectors
 from gensim.scripts.glove2word2vec import glove2word2vec
 from tensorflow.keras.utils import to_categorical
-from tensorflow.python.keras.utils.multi_gpu_utils import multi_gpu_model
 import os
 import pickle
 
 w2v_root = "../Datasets/w2v_model/glove_twitter_200d.model"
-data_root = '../Datasets/C/english/data_noaug.p'
-label_root = '../Datasets/C/english/label_noaug.p'
+data_root = '../Datasets/C/english/data_basic.p'
+label_root = '../Datasets/C/english/label_basic.p'
 
 def data_load(data_root,label_root):
 
@@ -72,16 +46,16 @@ def pretrained_layer(embedding_model):
     Embedding_dim = embedding_model.vector_size
 
     word2idx = {'PAD': 0}
-    # 所有词对应的嵌入向量 [(word, vector)]
+
     vocab_list = [word for word in enumerate(embedding_model.key_to_index.keys())]
     embeddings_matrix = np.zeros((len(vocab_list) + 1, embedding_model.vector_size))
-    # word2idx 字典
+
     for i in range(len(vocab_list)):
         word = vocab_list[i][1]
         word2idx[word] = i + 1
         embeddings_matrix[i + 1] = word_dict[word]
 
-    # 初始化keras中的Embedding层权重
+
     embedding_layer = Embedding(input_dim=len(embeddings_matrix),
                                 output_dim=Embedding_dim,
                                 weights=[embeddings_matrix],  # 预训练参数

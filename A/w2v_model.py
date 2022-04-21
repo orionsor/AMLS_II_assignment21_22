@@ -13,5 +13,5 @@ def create_w2v_model():
 
     return w2v_model
 
-w2v_model =create_w2v_model()
-w2v_model.save('./Datasets/w2v_model/glove_100d.model')
+#w2v_model =create_w2v_model()
+#w2v_model.save('./Datasets/w2v_model/glove_100d.model')

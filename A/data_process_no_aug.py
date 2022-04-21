@@ -1,15 +1,11 @@
 
-import random
 import numpy as np
 import pandas as pd
 import re
 import matplotlib.pyplot as plt
 import nltk
 import string
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn import preprocessing
-from sklearn.model_selection import train_test_split
-from joblib import dump, load
+
 from nltk.stem.isri import ISRIStemmer
 from nltk.tag import pos_tag
 from nltk.stem.wordnet import WordNetLemmatizer
@@ -22,12 +18,10 @@ nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('averaged_perceptron_tagger')
 nltk.download('wordnet')
-
+from wordcloud import WordCloud, STOPWORDS
 
 w2v_root = "../Datasets/w2v_model/glove_twitter_200d.model"
-
-"""this file is to generate the data through preprocess with data augmentation but without the assistance of ekphrasis library"""
-
+"""this file is to generate the data through preprocess without data augmentation and the assistance of ekphrasis library"""
 
 def data_import():
     data1 = pd.read_table('../Datasets/A/english/twitter-2016train-A.txt' , usecols=[0,1,2], encoding='utf-8', names=['id','sentiment', 'tweet'])
@@ -79,7 +73,7 @@ def remove_urls(tweets):
 def remove_usernames(tweets):
     return clean_base(tweets, re.compile(r"@[^\s]+[\s]?"))
 
-def remove_hashtags(tweets):  # it unrolls the hashtags to normal words
+def remove_hashtags(tweets):
     for hashtag in map(lambda x: re.compile(re.escape(x)), [",", "\"", "=", "&", ";", "%", "$",
                                                             "@", "%", "^", "*", "(", ")", "{", "}",
                                                             "[", "]", "|", "/", "\\", "-",
@@ -115,7 +109,7 @@ def processDocument(doc, stemmer):
 
     """Replace numbers with empty string"""
     doc = remove_numbers(doc)
-    """Replace selected with empty string"""
+    """Replace selected hashtags with empty string"""
     doc = remove_hashtags(doc)
 
     """stemming"""
@@ -137,17 +131,25 @@ def stoplist_process():
         co.append(count)
         if not count != 0:
             stop.append(stop_word)
+    day = ['tomorrow', 'yesterday', 'today', 'day', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday',
+           'saturday']
+    number = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
     stop.append('may')
     stop.append('get')
     stop.append('amp')
+    stop.extend(day)
+    stop.extend(number)
 
     return stop
+
+
 
 def data_tokenization(x):
     for i in range(len(x)):
         x[i] = nltk.word_tokenize(x[i])
 
     return x
+
 
 def lemmatize_sentence(tweet_tokens,STOP_WORDS):
     """recognize part of speech and restore word into original form"""
@@ -183,6 +185,7 @@ def data_to_le(x,stoplist):
     return temp
 
 def load_w2v_model(root):
+    """load GloVe corpus and model"""
     w2v_model = KeyedVectors.load(root)
     return w2v_model
 
@@ -195,13 +198,14 @@ def cleared(word):
         res += char
     return res
 
-def create_data(data_pro,word_to_index,max_len):
+def create_data(data_pro,word_to_index):
     """convert text data into vectors"""
     unks = []
     UNKS = []
     list_len = [len(i) for i in data_pro]
+    max_len = max(list_len)
     print('max_len:', max_len)
-    """fix length"""
+
     X = np.zeros((len(data_pro), max_len))
 
 
@@ -222,72 +226,54 @@ def create_data(data_pro,word_to_index,max_len):
             X[i, j] = index
     return X
 
+def create_label(df,type = 'categorical'):
+
+    if type == 'categorical':
+        Y = np.zeros((len(df),))
+
+        for i in range(len(df)):
+            Y[i] = df['label'][i]
+        Y = to_categorical(Y, 3)
+    elif type == 'sparse':
+        sparse_dic = {'-1': 0, '0': 1, '1': 2}
+        Y = np.zeros((len(df),))
+        for i in range(len(df)):
+            Y[i] = sparse_dic['%d' % df['label'][i]]
+
+    return Y
 
 
 
-def create_Y(y):
-  temp = np.zeros((len(y), ))
-  for i  in range(len(y)):
-    temp[i] = y[i]
-  Y = to_categorical(temp,3)
-  return Y
+
+def create_sentiment_list(df,data_pro,sentiment = 'neutral'):
+    senti = []
+
+    '''Separating out positive and negative words (i.e., words appearing in negative and positive tweets),
+                                  in order to visualize each set of words seperately'''
+    for i in range(len(df)):
+        if df['sentiment'][i] == sentiment:
+            senti.extend(data_pro[i])
+    return senti
 
 
 
-def eda_SR(originalSentence, n,stop):
-    """data augmentation, synonym replacement """
-    stops = stop
-    splitSentence = list(originalSentence.split(" "))
-    splitSentenceCopy = splitSentence.copy()
-    ls_nonStopWordIndexes = []
-    for i in range(len(splitSentence)):
-        if splitSentence[i].lower() not in stops:
-              ls_nonStopWordIndexes.append(i)
-    """warning in tuning of n"""
-    if (n > len(ls_nonStopWordIndexes)):
-        raise Exception("The number of replacements exceeds the number of non stop word words")
-    for i in range(n):
-        """randomly choose nonstop word for replacement"""
-        indexChosen = random.choice(ls_nonStopWordIndexes)
-        ls_nonStopWordIndexes.remove(indexChosen)
-        synonyms = []
-        originalWord = splitSentenceCopy[indexChosen]
-        """replace chosen word with synonyms"""
-        for synset in nltk.corpus.wordnet.synsets(originalWord):
-              for lemma in synset.lemmas():
-                if lemma.name() != originalWord:
-                      synonyms.append(lemma.name())
-        if (synonyms == []):
-              continue
-        splitSentence[indexChosen] = random.choice(synonyms).replace('_', ' ')
-    return " ".join(splitSentence)
+def wordcloud_draw(data,stop,color='black', title='positive'):
+    """draw word cloud"""
+    wordcloud = WordCloud(stopwords=stop,
+                          background_color=color,
+                          width=1500,
+                          height=1000
+                          ).generate(' '.join(data))
+    plt.figure(1, figsize=(13, 13))
+    plt.imshow(wordcloud)
+    plt.axis('off')
+    plt.savefig('./plot/cloud_%s.jpg' % title)
+    plt.show()
 
 
-def training_data_augmentation(x_train,y_train,n,stop):
-    """apply augmentation on training dataset"""
-    data_neg = []
-    for i in range(len(x_train)):
-        if y_train[i] == -1:
-            data_neg.append(x_train[i])
-
-    aug_neg = []
-    for i in data_neg:
-        aug_neg.append(eda_SR(i, n,stop))
-    x_train.extend(aug_neg)
-    for j in range(len(aug_neg)):
-        y_train.append(-1)
-    return x_train,y_train
 
 
-def calculate_maxlen(x_train,x_val,x_test):
-    list_len = [len(i) for i in x_train]
-    max_len1 = max(list_len)
-    list_len = [len(i) for i in x_val]
-    max_len2 = max(list_len)
-    list_len = [len(i) for i in x_test]
-    max_len3 = max(list_len)
-    max_len = max([max_len1, max_len2, max_len3])
-    return max_len
+
 
 
 
@@ -295,40 +281,26 @@ if __name__ == '__main__':
     #os.environ["CUDA_VISIBLE_DEVICES"] = '0'
     data = data_import()
     data = add_label(data)
+    #plot_data_distribution(data)
     stemmer = ISRIStemmer()
     data["tweet"] = data['tweet'].apply(lambda x: processDocument(x, stemmer))
-
-    data_list = data["tweet"] .tolist()
-    label_list = data['label'].tolist()
     stoplist = stoplist_process()
+    data_list = data["tweet"] .tolist()
+    data_processed = data_to_le(data_list,stoplist)
 
-    X_train, X_test, Y_train, Y_test = train_test_split(data_list, label_list, test_size=0.4, random_state=22,
-                                                        stratify=label_list)
-    X_val, X_test, Y_val, Y_test = train_test_split(X_test, Y_test, test_size=0.5, random_state=22, stratify=Y_test)
+    positive_words = create_sentiment_list(data,data_processed,sentiment ='positive')
+    neutral_words = create_sentiment_list(data, data_processed, sentiment='neutral')
+    negative_words = create_sentiment_list(data, data_processed, sentiment='negative')
+    wordcloud_draw(positive_words,stoplist, 'white', title='positive')
+    wordcloud_draw(neutral_words,stoplist, 'ghostwhite', title='neutral')
+    wordcloud_draw(negative_words,stoplist, title='nagative')
 
-
-    X_train, Y_train = training_data_augmentation(X_train,Y_train,3,stoplist)
-
-    Y_train = create_Y(Y_train)
-    Y_val = create_Y(Y_val)
-    Y_test = create_Y(Y_test)
-
-    X_train = data_to_le(X_train,stoplist)
-    print(X_train[9174])
-    X_val = data_to_le(X_val,stoplist)
-    X_test = data_to_le(X_test,stoplist)
-
-    max_len = calculate_maxlen(X_train,X_val,X_test)
     embedding_model = load_w2v_model(w2v_root)
-    X_train = create_data(X_train, embedding_model.key_to_index, max_len)
-    X_val = create_data(X_val, embedding_model.key_to_index, max_len)
-    X_test = create_data(X_test, embedding_model.key_to_index, max_len)
-    pickle.dump(X_train, open("../Datasets/A/english/data_train_aug.p" , "wb"))
-    pickle.dump(X_val, open("../Datasets/A/english/data_val_aug.p", "wb"))
-    pickle.dump(X_test, open("../Datasets/A/english/data_test_aug.p", "wb"))
-    pickle.dump(Y_train, open("../Datasets/A/english/label_train_aug.p", "wb"))
-    pickle.dump(Y_val, open("../Datasets/A/english/label_val_aug.p", "wb"))
-    pickle.dump(Y_test, open("../Datasets/A/english/label_test_aug.p", "wb"))
+    X = create_data(data_processed, embedding_model.key_to_index)
+    Y = create_label(data,type = 'categorical')
+    pickle.dump(X, open("../Datasets/A/english/data_noaug.p" , "wb"))
+    pickle.dump(Y, open("../Datasets/A/english/label_noaug.p", "wb"))
+
 
 
 

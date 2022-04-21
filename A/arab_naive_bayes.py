@@ -402,8 +402,6 @@ if __name__ == '__main__':
 
     data_processed = data_to_le(data,stoplist)
     label_list = data["label"].tolist()
-    #data_list = data_processed["tweet"].tolist()
-
 
 
 
@@ -412,16 +410,11 @@ if __name__ == '__main__':
     Y = create_Y(label_list)
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.3, random_state=22, stratify=Y)
 
-
     clf_nbays = MultinomialNB()
-    #clf_DT = tree.DecisionTreeClassifier(max_depth=500)
-    #clf_svm = SVC()
-    #train_predict(clf_nbays, X_train, Y_train, X_test, Y_test)
     clf_nbays.fit(X_train, Y_train)
-    #Y_pred = clf_nbays.predict(X_test)
     Y_pred = clf_nbays.predict(X_test)
     Y_pred1 = clf_nbays.predict(X_train)
-    result = calculate_results(Y_test, Y_pred)
+    #result = calculate_results(Y_test, Y_pred)
     cm = confusion_matrix(Y_test, Y_pred)
     plot_confusion_matrix(cm, ['positive', 'neutral', 'negative'])
     print("F1 score for training set: {:.4f}.".format(f1_score(Y_train, Y_pred1,average='micro')))
