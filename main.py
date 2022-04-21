@@ -12,6 +12,8 @@ A_root2 = "./Datasets/A/english/twitter-2016test-A.txt"
 w2v_root = "./Datasets/w2v_model/glove_twitter_200d.model"
 C_root1 = "./Datasets/C/english/twitter-2016train-CE.txt"
 C_root2 = "./Datasets/C/english/twitter-2016test-CE.txt"
+filepath_A = './Datasets/A/english/model/weights.best-lstm.hdf5'
+filepath_C = './Datasets/C/english/model/weights.best-lstm-c.hdf5'
 # ======================================================================================================================
 # Data preprocessing-A
 
@@ -36,11 +38,12 @@ embedding_layer = BiLSTM.pretrained_layer(embedding_model)
 
 model_A = BiLSTM.create_model(embedding_layer)
 #model_A.load_weights('./A/model/weights.best_biLSTM.hdf5')
-BiLSTM.train_model(model_A, X_train_A, Y_train_A, X_val_A, Y_val_A)
+BiLSTM.train_model(model_A, X_train_A, Y_train_A, X_val_A, Y_val_A,filepath_A)
 ################train#############################
 #plot_acc_loss(model.history)
 _,acc_A_train =model_A.evaluate(X_train_A, Y_train_A)
 _,acc_A_test =model_A.evaluate(X_test_A, Y_test_A)
+
 
 # ======================================================================================================================
 # Data preprocessing-C
@@ -77,10 +80,11 @@ X_val_tweet, X_val_topic = c_biLSTM_ek.split_data(X_val_C)
 X_test_tweet, X_test_topic = c_biLSTM_ek.split_data(X_test_C)
 
 model_C = c_biLSTM_ek.create_model(X_train_tweet, X_train_topic, embedding_layer)
-
-
 optimizer = tf.optimizers.Adam(learning_rate=0.0005)
 model_C.compile(loss='CategoricalCrossentropy', optimizer=optimizer, metrics=['accuracy'])
+c_biLSTM_ek.train_model(model_C, X_train_tweet,X_train_topic, Y_train_C, X_val_tweet,X_val_topic, Y_val_C, filepath_C)
+
+
 _,acc_B_train = model_C.evaluate([X_train_tweet,X_train_topic], Y_train_C)
 _,acc_B_test = model_C.evaluate([X_test_tweet,X_test_topic], Y_test_C)
 

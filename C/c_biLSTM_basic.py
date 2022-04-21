@@ -182,12 +182,12 @@ if __name__ == '__main__':
     my_seed = 22
     np.random.seed(my_seed)
 
-    model.load_weights('./model/weights.best_biLSTM_ekphrasis.hdf5')
+    #model.load_weights('./model/weights.best_biLSTM_ekphrasis.hdf5')
     optimizer = tf.optimizers.Adam(learning_rate=0.0005)
     model.compile(loss='CategoricalCrossentropy', optimizer=optimizer, metrics=['accuracy'])
 
-    #model.fit([X_train_tweet,X_train_topic], Y_train, validation_data=([X_val_tweet,X_val_topic], Y_val), epochs = 200, batch_size = 128, shuffle=True,callbacks=callbacks_list)
-    #plot_acc_loss(model.history)
+    model.fit([X_train_tweet,X_train_topic], Y_train, validation_data=([X_val_tweet,X_val_topic], Y_val), epochs = 50, batch_size = 256, shuffle=True,callbacks=callbacks_list)
+    plot_acc_loss(model.history)
     model.evaluate([X_test_tweet,X_test_topic], Y_test)
 
 

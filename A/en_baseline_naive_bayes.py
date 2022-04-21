@@ -1,4 +1,3 @@
-
 import os
 import random
 import numpy as np
@@ -9,12 +8,10 @@ import seaborn as sns
 import matplotlib.cm as cm
 from matplotlib import rcParams
 import nltk
-
 from nltk.stem.isri import ISRIStemmer
 from collections import Counter
 import itertools
 import string
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
@@ -33,8 +30,7 @@ from sklearn.metrics import f1_score
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 
-from sklearn import tree
-from sklearn.svm import SVC
+
 
 """this file is to build, train, validate and evaluate Naive Bayes model
       based on the data through preprocess without the assistance of ekphrasis library.

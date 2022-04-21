@@ -3,9 +3,8 @@ from gensim.test.utils import datapath, get_tmpfile
 from gensim.models import KeyedVectors
 from gensim.scripts.glove2word2vec import glove2word2vec
 
-
-
-
+'''this file cannot be run because necessary file is too large to be uploaded on Github
+        only put here to show how the Glove model is generated in implementation'''
 
 def create_w2v_model():
     glove_file = "./Datasets/glove/glove.6B.100d.txt"

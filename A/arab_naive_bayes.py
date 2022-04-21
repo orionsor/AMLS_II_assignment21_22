@@ -1,34 +1,16 @@
-import keras
-from keras import Sequential
-from keras.models import Model
-from keras.layers import Dense, Dropout, LSTM, Bidirectional,GlobalMaxPool1D,SpatialDropout1D,Conv1D,MaxPooling1D
-from keras.layers.embeddings import Embedding
-from sklearn.model_selection import train_test_split
-import tensorflow as tf
-from keras.preprocessing.sequence import pad_sequences
-import os
-import random
+
 import numpy as np
 import pandas as pd
 import re
 import matplotlib.pyplot as plt
-import seaborn as sns
-import matplotlib.cm as cm
-from matplotlib import rcParams
+
 import nltk
 
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.tokenize import RegexpTokenizer
-from nltk.stem.isri import ISRIStemmer
-from collections import Counter
 import itertools
 import string
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn import preprocessing
+
 from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.svm import SVC
+
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
@@ -37,24 +19,16 @@ from nltk.stem.isri import ISRIStemmer
 from nltk.tag import pos_tag
 from nltk.stem.wordnet import WordNetLemmatizer
 from time import time
-import gensim
-from gensim.scripts.glove2word2vec import glove2word2vec
-from gensim.test.utils import datapath, get_tmpfile
+
 from gensim.models import KeyedVectors
 from gensim.scripts.glove2word2vec import glove2word2vec
 from tensorflow.keras.utils import to_categorical
-from tensorflow.python.keras.utils.multi_gpu_utils import multi_gpu_model
 import os
 import pickle
 from nltk.stem import SnowballStemmer
-
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import f1_score
 from sklearn.feature_extraction.text import TfidfVectorizer
-
-
-from sklearn import tree
-from sklearn.svm import SVC
 
 
 nltk.download('punkt')
@@ -63,7 +37,7 @@ nltk.download('averaged_perceptron_tagger')
 nltk.download('wordnet')
 
 
-w2v_root = "../Datasets/w2v_model/glove_twitter_200d.model"
+#w2v_root = "../Datasets/w2v_model/glove_twitter_200d.model"
 
 
 def data_import():
@@ -151,11 +125,6 @@ def processDocument(doc, stemmer):
     # Replace #word with word
     doc = re.sub(r'#([^\s]+)', r'\1', doc)
     doc = re.sub(r'[a-z,A-Z]', '', doc)
-
-    # remove punctuations
-    #doc = remove_punctuations(doc)
-    # normalize the tweet
-    # doc= normalize_arabic(doc)
 
     # Replace numbers with empty string
     doc = remove_numbers(doc)

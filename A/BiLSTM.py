@@ -16,6 +16,7 @@ import pickle
 w2v_root = "../Datasets/w2v_model/glove_twitter_200d.model"
 data_root = '../Datasets/A/english/data_ekphrasis.p'
 label_root = '../Datasets/A/english/label_ekphrasis.p'
+file_path = './model/weights.best-lstm.hdf5'
 
 """this file is to build, train, validate and evaluate Bi-LSTM model
       based on the data through preprocess with the assistance of ekphrasis library"""
@@ -91,9 +92,9 @@ def create_model(embedding_layer):
     return model
 
 
-def train_model(model, X_train, Y_train, X_val, Y_val):
+def train_model(model, X_train, Y_train, X_val, Y_val,filepath):
     """model training and tuning with early stopping and callback to prevent overfitting and save best model"""
-    filepath = './Datasets/english/model/weights.best-lstm.hdf5'
+
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
         filepath=filepath,
         save_weights_only=True,
@@ -154,6 +155,8 @@ if __name__ == '__main__':
 
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.4, random_state=22, stratify=Y)
     X_val, X_test, Y_val, Y_test = train_test_split(X_test, Y_test, test_size=0.5, random_state=22, stratify=Y_test)
+
+    train_model(model, X_train, Y_train, X_val, Y_val,file_path)
     _,acc_train =model.evaluate(X_train, Y_train)
     train_model(model, X_train, Y_train, X_val, Y_val)
     plot_acc_loss(model.history)

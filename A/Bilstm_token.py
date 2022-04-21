@@ -97,7 +97,7 @@ def create_model(embedding_layer):
 
 def train_model(model, X_train, Y_train, X_val, Y_val):
     """model training and tuning with early stopping and callback to prevent overfitting and save best model"""
-    filepath = './Datasets/english/model/weights.best-lstm.hdf5'
+    filepath = './model/weights.best-lstm-token.hdf5'
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
         filepath=filepath,
         save_weights_only=True,
