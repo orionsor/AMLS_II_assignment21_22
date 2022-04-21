@@ -16,7 +16,6 @@ import seaborn as sns
 import matplotlib.cm as cm
 from matplotlib import rcParams
 import nltk
-
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.tokenize import RegexpTokenizer
@@ -24,22 +23,12 @@ from nltk.stem.isri import ISRIStemmer
 from collections import Counter
 import itertools
 import string
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn import preprocessing
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.svm import SVC
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-
-from joblib import dump, load
 from nltk.stem.isri import ISRIStemmer
 from nltk.tag import pos_tag
 from nltk.stem.wordnet import WordNetLemmatizer
 from time import time
 import gensim
 from gensim.scripts.glove2word2vec import glove2word2vec
-from gensim.test.utils import datapath, get_tmpfile
 from gensim.models import KeyedVectors
 from gensim.scripts.glove2word2vec import glove2word2vec
 from tensorflow.keras.utils import to_categorical
@@ -118,27 +107,23 @@ def remove_punctuations(text):
     return text.translate(translator)
 
 def processDocument(doc, stemmer,datatype ="tweet"):
-    # Replace @username with empty string
+    """summary of data cleansing"""
+    """Replace @username with empty string"""
     if datatype == "tweet":
         doc = remove_usernames(doc)
-    # Replace url with empty string
+    """Replace url with empty string"""
     doc = remove_urls(doc)
 
     doc = re.sub(r'\n', ' ', doc)
     doc = re.sub(r'\d', '', doc)
-    # Convert www.* or https?://* to " "
+    """Convert www.* or https?://* to """
     doc = re.sub('(www\.[^\s])', ' ', doc)
-    # Replace #word with word
+    """Replace #word with word"""
     doc = re.sub(r'#([^\s]+)', r'\1', doc)
 
-    # remove punctuations
-    #doc = remove_punctuations(doc)
-    # normalize the tweet
-    # doc= normalize_arabic(doc)
-
-    # Replace numbers with empty string
+    """Replace numbers with empty string"""
     doc = remove_numbers(doc)
-    # Replace @username with empty string
+    """Replace selected hashtags with empty string"""
     doc = remove_hashtags(doc)
 
     # stemming
@@ -148,6 +133,7 @@ def processDocument(doc, stemmer,datatype ="tweet"):
 
 
 def stoplist_process():
+    """process of original stopwords"""
     stopwords = nltk.corpus.stopwords.words("english")
     whitelist = ["n't", "dn", "en", "tn", "not", "sn"]
     stop = []
@@ -172,6 +158,7 @@ def stoplist_process():
     return stop
 
 def create_tokenizer():
+    """create tokenizer with ekphrasis"""
     text_processor = TextPreProcessor(
         # terms that will be normalized
         normalize=['url', 'email', 'percent', 'money', 'phone', 'user',
@@ -213,10 +200,11 @@ def data_tokenization(x,text_processor):
 
 
 def lemmatize_sentence(tweet_tokens,STOP_WORDS):
+    """recognize part of speech and restore word into original form"""
     cleaned_tokens = []
 
     for token, tag in pos_tag(tweet_tokens):
-        # Eliminating the token if it is a link
+
 
         if tag.startswith("NN"):
             pos = 'n'
@@ -228,7 +216,7 @@ def lemmatize_sentence(tweet_tokens,STOP_WORDS):
         lemmatizer = WordNetLemmatizer()
         token = lemmatizer.lemmatize(token.lower(), pos)
 
-        # Eliminating the token if its length is less than 3, if it is a punctuation or if it is a stopword
+        """Eliminating the token if its length is less than 2 or if it is a stopword"""
         if token not in string.punctuation and len(token) > 2 and token not in STOP_WORDS:
             cleaned_tokens.append(token)
         elif token in string.punctuation:
@@ -237,11 +225,12 @@ def lemmatize_sentence(tweet_tokens,STOP_WORDS):
     return cleaned_tokens
 
 def data_to_le(x,stoplist,processer):
-  x = data_tokenization(x,processer)
-  temp = []
-  for tokens in x:
-    temp.append(lemmatize_sentence(tokens,stoplist))
-  return temp
+    """summary of tokenization and lemmatization"""
+    x = data_tokenization(x,processer)
+    temp = []
+    for tokens in x:
+        temp.append(lemmatize_sentence(tokens,stoplist))
+    return temp
 
 def load_w2v_model(root):
     w2v_model = KeyedVectors.load(root)
@@ -257,6 +246,7 @@ def cleared(word):
     return res
 
 def create_data(data_pro,word_to_index):
+    """convert text data into vectors"""
     unks = []
     UNKS = []
     list_len = [len(i) for i in data_pro]
@@ -303,8 +293,9 @@ def create_sentiment_list(df,data_pro,sentiment = 'neutral'):
         "positive": 1,
         "very positive": 2
     }
-# Separating out positive and negative words (i.e., words appearing in negative and positive tweets),
-# in order to visualize each set of words seperately
+
+    """Separating out positive and negative words (i.e., words appearing in negative and positive tweets),
+                    in order to visualize each set of words seperately"""
     for i in range(len(df)):
         if df['sentiment'][i] == CATEGORY_INDEX[sentiment]:
             senti.extend(data_pro[i])
@@ -312,8 +303,9 @@ def create_sentiment_list(df,data_pro,sentiment = 'neutral'):
 
 
 
-# Defining our word cloud drawing function
+
 def wordcloud_draw(data,stop,color='black', title='positive'):
+    """draw word cloud based on occurrence frequency"""
     wordcloud = WordCloud(stopwords=stop,
                           background_color=color,
                           width=1500,

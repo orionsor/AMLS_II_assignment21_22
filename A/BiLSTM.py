@@ -104,7 +104,7 @@ def train_model(model, X_train, Y_train, X_val, Y_val,filepath):
     earlyStop = keras.callbacks.EarlyStopping(monitor='val_accuracy', min_delta=0, patience=15, mode='max', verbose=1,
                                               restore_best_weights=True)
     callbacks_list = [checkpoint, earlyStop]
-    model.fit(X_train, Y_train, validation_data=(X_val, Y_val), epochs=100, batch_size=256, shuffle=True,
+    model.fit(X_train, Y_train, validation_data=(X_val, Y_val), epochs=1, batch_size=256, shuffle=True,
               callbacks=callbacks_list)
 
 
